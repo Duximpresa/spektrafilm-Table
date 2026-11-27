@@ -12,7 +12,8 @@ from spektrafilm.utils.spectral_upsampling import rgb_to_raw_hanatos2025, rgb_to
 
 class FilmingStage:
     def __init__(self, film, film_render_params, camera_params, io_params, settings_params,
-                 lut_service, resize_service, enlarger_service, color_reference_service):
+                 lut_service, resize_service, enlarger_service, color_reference_service, *, backend=None):
+        self._backend = backend
         self._film = film
         self._film_render = film_render_params
         self._camera = camera_params
@@ -59,7 +60,8 @@ class FilmingStage:
         boost_highlights(raw, self._film_render.halation.boost_ev,
                          self._film_render.halation.boost_range,
                          self._film_render.halation.protect_ev, out=raw)
-        raw = apply_diffusion_filter_um(
+        diffuse = self._backend.apply_diffusion if self._backend is not None else apply_diffusion_filter_um
+        raw = diffuse(
             raw,
             self._camera.diffusion_filter,
             pixel_size_um=self._resize_service.pixel_size_um,

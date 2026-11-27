@@ -406,6 +406,7 @@ def build_controls_panel(viewer: napari.Viewer, widgets: WidgetBundle) -> QWidge
             _build_controls_tab(
                 widgets.filepicker,
                 widgets.load_raw,
+                *([widgets.load_raw.white_balance_panel] if hasattr(widgets.load_raw, "white_balance_panel") else []),
                 widgets.preview_crop,
                 widgets.input_image,
                 widgets.camera,

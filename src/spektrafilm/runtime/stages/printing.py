@@ -22,7 +22,9 @@ class PrintingStage:
         enlarger_service,
         resize_service,
         color_reference_service,
+        *, backend=None,
     ):
+        self._backend = backend
         self._film = film
         self._film_render = film_render_params
         self._print = print_profile
@@ -53,7 +55,8 @@ class PrintingStage:
         raw = 10**log_raw_print
         raw *= self._enlarger.print_exposure
         raw *= self._color_reference_service.black_white_printing_exposure_correction()
-        raw = apply_diffusion_filter_um(
+        diffuse = self._backend.apply_diffusion if self._backend is not None else apply_diffusion_filter_um
+        raw = diffuse(
             raw,
             self._enlarger.diffusion_filter,
             pixel_size_um=self._resize_service.pixel_size_um,

@@ -25,7 +25,9 @@ class ScanningStage:
         settings_params,
         lut_service,
         color_reference_service,
+        *, backend=None,
     ):
+        self._backend = backend
         self._film = film
         self._film_render = film_render_params
         self._print = print_profile
@@ -91,7 +93,8 @@ class ScanningStage:
         # With both in place the output is in [0, 1] without a
         # downstream clip; see n100 / n110 for the design and b40 for
         # the smoothness analysis.
-        rgb = compress_rgb(
+        compress = self._backend.compress_rgb if self._backend is not None else compress_rgb
+        rgb = compress(
             rgb, self._io.output_gamut_compress,
             output_color_space=self._io.output_color_space,
         )

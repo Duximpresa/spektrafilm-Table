@@ -44,6 +44,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Minimal CUDA 12 runtime for FP64 elementwise kernels and FFT. No system
+# Toolkit is required; an NVIDIA driver is. Kept separate from CPU installs.
+cuda = [
+    "cupy-cuda12x~=14.2.0",
+    "nvidia-cuda-runtime-cu12~=12.9.0",
+    "nvidia-cuda-nvrtc-cu12~=12.9.0",
+    "nvidia-cufft-cu12~=11.4.1",
+]
 # Test/dev tooling on top of the default install.
 dev = [
     "pytest",
@@ -51,6 +59,7 @@ dev = [
 ]
 
 [project.scripts]
+spektrafilm-table = "spektrafilm_gui.table_app:main"
 spektrafilm = "spektrafilm_gui.app:main"
 spektrafilm-lut = "spektrafilm_lut_creator.cli:main"
 

@@ -258,15 +258,16 @@ class BoolEditor(QtWidgets.QCheckBox):
 class EnumEditor(QtWidgets.QComboBox):
     def __init__(self, values: list[str]):
         super().__init__()
-        self.addItems(values)
+        for value in values:
+            self.addItem(value, value)
 
     @property
     def value(self) -> str:
-        return self.currentText()
+        return self.currentData()
 
     @value.setter
     def value(self, value: str) -> None:
-        index = self.findText(value)
+        index = self.findData(value)
         if index >= 0:
             self.setCurrentIndex(index)
         else:

@@ -47,7 +47,10 @@ def gui_state_to_dict(state: GuiState) -> dict[str, Any]:
     data.pop('gui_only', None)
     data.pop('selection', None)
     data['input_image'] = input_image_to_dict(state.input_image)
-    data['load_raw'] = asdict(state.gui_only.load_raw)
+    raw = asdict(state.gui_only.load_raw)
+    data['schema_version'] = 2
+    data['white_balance'] = {key: raw.pop(key) for key in ('white_balance', 'temperature', 'tint')}
+    data['load_raw'] = raw
     data['special'] = special_to_dict(state.special)
     data['simulation'] = simulation_to_dict(state.simulation)
     data['display'] = display_to_dict(state.gui_only.display)
@@ -58,6 +61,16 @@ def gui_state_from_dict(data: dict[str, Any]) -> GuiState:
     if not isinstance(data, dict):
         raise ValueError("GUI state data must be a JSON object.")
     normalized = dict(data)
+    version = normalized.pop('schema_version', 1)
+    if version not in (1, 2):
+        raise ValueError('Unsupported GUI config version: ' + str(version))
+    balance = normalized.pop('white_balance', None)
+    if balance is not None:
+        if not isinstance(balance, dict):
+            raise ValueError('white_balance must be an object')
+        raw = dict(normalized.get('load_raw', {}))
+        raw = {**balance, **raw}
+        normalized['load_raw'] = raw
     for section_name, normalizer in SECTION_NORMALIZERS.items():
         section = normalized.get(section_name)
         if isinstance(section, dict):

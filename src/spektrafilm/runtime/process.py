@@ -16,12 +16,22 @@ class Simulator:
     They can be refreshed with update_params or soft_update, which delegate to the internal pipeline.
     """
 
-    def __init__(self, params: RuntimePhotoParams):
-        self._pipeline = SimulationPipeline(params) # should stay private
+    def __init__(self, params: RuntimePhotoParams, *, execution=None):
+        self._pipeline = (SimulationPipeline(params) if execution is None
+                          else SimulationPipeline(params, execution=execution))
 
-    def process(self, image):
+    def process(self, image, *, on_progress=None):
         """Process the input image through the simulation pipeline and return the final result."""
-        return self._pipeline.process(image)
+        if on_progress is None:
+            return self._pipeline.process(image)
+        return self._pipeline.process(image, on_progress=on_progress)
+
+    def execution_status(self):
+        """Actual backend and any CPU fallback in the last run."""
+        return self._pipeline.backend.status()
+
+    def close(self):
+        self._pipeline.backend.close()
 
     def update_params(self, params):
         """Update the parameters of the simulation pipeline."""

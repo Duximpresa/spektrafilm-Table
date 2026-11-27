@@ -190,3 +190,7 @@ uv.lock
 
 # claude
 .claude
+
+# Personal GUI parameter presets (keep the directory documentation).
+/presets/*
+!/presets/README.md

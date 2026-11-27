@@ -383,6 +383,7 @@ class LoadRawSection(QWidget):
             setattr(self, field_name, editor)
 
         form = _new_form_layout()
+        self.import_form = form
         browse_button = _build_button(
             'Select file',
             self._choose_file,
@@ -395,6 +396,45 @@ class LoadRawSection(QWidget):
         form.addRow(self.reprocess_button)
 
         self.setLayout(_build_collapsible_form_section(self.TITLE, form, expanded=False))
+
+    def enable_live_white_balance(self, callback):
+        self._live_wb_callback = callback
+        if hasattr(self, "white_balance_panel"):
+            return
+        callback = lambda *_args: self._live_wb_callback()
+        self.white_balance_panel = QWidget()
+        form = _new_form_layout()
+        for name in ('white_balance', 'temperature', 'tint'):
+            editor = getattr(self, name)
+            row = self.import_form.takeRow(editor)
+            label = row.labelItem.widget()
+            if name == 'white_balance':
+                form.addRow(label, editor)
+                editor.currentIndexChanged.connect(callback)
+                continue
+            slider = QtWidgets.QSlider(Qt.Horizontal)
+            slider.setMinimumWidth(110)
+            editor.setMaximumWidth(95)
+            scale = 1 if name == 'temperature' else 100
+            slider.setRange(1000 if scale == 1 else 10, 25000 if scale == 1 else 300)
+            slider.setValue(round(editor.value * scale))
+            def sync_slider(value, slider=slider, scale=scale):
+                blocker = QtCore.QSignalBlocker(slider)
+                slider.setValue(round(value * scale))
+                del blocker
+            def change(value, editor=editor, scale=scale):
+                self.white_balance.value = 'custom'
+                editor.value = value / scale
+            slider.valueChanged.connect(change)
+            editor.valueChanged.connect(sync_slider)
+            editor.valueChanged.connect(lambda *_: setattr(self.white_balance, 'value', 'custom'))
+            editor.valueChanged.connect(callback)
+            setattr(self, name + '_slider', slider)
+            form.addRow(label, _build_button_row(slider, editor))
+        self.pick_white_balance = QPushButton('Eyedropper - pick neutral grey')
+        self.pick_white_balance.setCheckable(True)
+        form.addRow(self.pick_white_balance)
+        self.white_balance_panel.setLayout(_build_collapsible_form_section('White balance', form, expanded=True))
 
     def _choose_file(self) -> None:
         path, _ = QFileDialog.getOpenFileName(self, _normalize_ui_text('Select input raw'), load_dialog_dir('raw_input'))
@@ -412,8 +452,18 @@ class LoadRawSection(QWidget):
 
     def set_state(self, state: LoadRawState) -> None:
         self._source = state
-        for field_name in self._STATE_FIELD_NAMES:
-            getattr(self, field_name).value = getattr(state, field_name)
+        blockers = [QtCore.QSignalBlocker(getattr(self, name)) for name in self._STATE_FIELD_NAMES]
+        try:
+            for field_name in self._STATE_FIELD_NAMES:
+                getattr(self, field_name).value = getattr(state, field_name)
+            for name, scale in (('temperature', 1), ('tint', 100)):
+                slider = getattr(self, name + '_slider', None)
+                if slider is not None:
+                    blocker = QtCore.QSignalBlocker(slider)
+                    slider.setValue(round(getattr(state, name) * scale))
+                    del blocker
+        finally:
+            del blockers
 
     def get_state(self) -> LoadRawState:
         state = clone_state_section(self._source) if self._source is not None else clone_state_section(PROJECT_DEFAULT_GUI_STATE.gui_only.load_raw)

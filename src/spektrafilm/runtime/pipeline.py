@@ -5,6 +5,8 @@ from time import perf_counter
 
 import numpy as np
 
+from spektrafilm.runtime.execution import create_backend
+
 from spektrafilm.runtime.services import (
     EnlargerService,
     ResizingService,
@@ -27,7 +29,9 @@ class SimulationPipeline:
     and returns the value at the requested ``collect`` tap.
     """
 
-    def __init__(self, params, update_params=False):
+    def __init__(self, params, update_params=False, *, execution=None):
+        if not update_params:
+            self.backend = create_backend(execution)
         self._params = copy.deepcopy(params)
 
         self.camera = self._params.camera
@@ -65,6 +69,7 @@ class SimulationPipeline:
             self._resize_service,
             self._enlarger_service,
             self._color_reference_service,
+            backend=self.backend,
         )
         self._printing_stage = PrintingStage(
             self.film,
@@ -77,6 +82,7 @@ class SimulationPipeline:
             self._enlarger_service,
             self._resize_service,
             self._color_reference_service,
+            backend=self.backend,
         )
         self._scanning_stage = ScanningStage(
             self.film,
@@ -88,6 +94,7 @@ class SimulationPipeline:
             self.settings,
             self._lut_service,
             self._color_reference_service,
+            backend=self.backend,
         )
 
         # timing communication
@@ -98,7 +105,7 @@ class SimulationPipeline:
 
         self._topology: list[Node] = self._build_topology()
 
-    def process(self, image, *, inject: str | None = None, collect: str | None = None):
+    def process(self, image, *, inject: str | None = None, collect: str | None = None, on_progress=None):
         """Run the pipeline.
 
         Defaults run end-to-end (``rgb_in`` → ``rgb_out``). Pass
@@ -111,13 +118,16 @@ class SimulationPipeline:
 
         self.timings.clear()
         start = perf_counter()
+        self.backend.begin_run()
         try:
             return run_topology(
                 self._topology, inject, collect, image,
                 on_fire=self._record_node_timing,
+                on_progress=on_progress,
             )
         finally:
             self._last_elapsed_time = perf_counter() - start
+            self.backend.end_run()
 
     def get_timings(self):
         return self.timings
